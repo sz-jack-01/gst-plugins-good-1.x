@@ -308,6 +308,38 @@ gst_v4l2_src_parse_fixed_struct (GstStructure * s,
     gst_structure_get_fraction (s, "framerate", fps_n, fps_d);
 }
 
+static gint
+gst_v4l2src_get_format_loss (GstStructure * s)
+{
+  GstVideoFormat format;
+  const gchar *buf = g_getenv ("GST_V4L2_PREFERRED_FOURCC");
+  guint32 fourcc, loss;
+
+  if (!buf)
+    return 0;
+
+  format =
+      gst_video_format_from_string (gst_structure_get_string (s, "format"));
+  if (format == GST_VIDEO_FORMAT_UNKNOWN)
+    return 0;
+
+  fourcc = gst_video_format_to_fourcc (format);
+
+  loss = 0;
+  while (buf) {
+    if (buf[0] == ':')
+      buf++;
+
+    if (!strncmp (buf, (char *) &fourcc, 4))
+      return loss;
+
+    buf = strchr (buf, ':');
+    loss++;
+  }
+
+  return loss;
+}
+
 /* TODO Consider framerate */
 static gint
 gst_v4l2src_fixed_caps_compare (GstCaps * caps_a, GstCaps * caps_b,
@@ -359,6 +391,11 @@ gst_v4l2src_fixed_caps_compare (GstCaps * caps_a, GstCaps * caps_b,
 
   if (bh == pref->height)
     bd -= 1;
+
+  if (ad == bd) {
+    ad = gst_v4l2src_get_format_loss (a);
+    bd = gst_v4l2src_get_format_loss (b);
+  }
 
   /* If the choices are equivalent, maintain the order */
   if (ad == bd)

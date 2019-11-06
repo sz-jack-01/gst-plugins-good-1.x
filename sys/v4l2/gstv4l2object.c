@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -1135,6 +1136,22 @@ gst_v4l2_object_format_get_rank (const struct v4l2_fmtdesc *fmt)
     default:
       rank = 0;
       break;
+  }
+
+  {
+    const char *buf = g_getenv ("GST_V4L2_PREFERRED_FOURCC");
+    int max_rank = YUV_BASE_RANK * 2;
+
+    while (buf) {
+      if (buf[0] == ':')
+        buf++;
+
+      if (!strncmp (buf, (char *) &fourcc, 4))
+        rank = max_rank;
+
+      buf = strchr (buf, ':');
+      max_rank--;
+    }
   }
 
   /* All ranks are below 1<<15 so a shift by 15
