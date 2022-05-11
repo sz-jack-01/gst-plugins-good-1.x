@@ -2770,11 +2770,18 @@ gst_v4l2_object_probe_caps_for_format (GstV4l2Object * v4l2object,
   gint fd = v4l2object->video_fd;
   struct v4l2_frmsizeenum size;
   GList *results = NULL;
+  guint32 max_width = G_MAXINT, max_height = G_MAXINT;
   guint32 w, h;
 
   if (pixelformat == GST_MAKE_FOURCC ('M', 'P', 'E', 'G')) {
     gst_caps_append_structure (ret, gst_structure_copy (template));
     return ret;
+  }
+
+  if (!V4L2_TYPE_IS_OUTPUT (v4l2object->type)) {
+    const gchar *buf = g_getenv ("GST_V4L2SRC_MAX_RESOLUTION");
+    if (buf)
+      sscanf (buf, "%ux%u", &max_width, &max_height);
   }
 
   memset (&size, 0, sizeof (struct v4l2_frmsizeenum));
@@ -2793,8 +2800,8 @@ gst_v4l2_object_probe_caps_for_format (GstV4l2Object * v4l2object,
       GST_LOG_OBJECT (v4l2object->dbg_obj, "got discrete frame size %dx%d",
           size.discrete.width, size.discrete.height);
 
-      w = MIN (size.discrete.width, G_MAXINT);
-      h = MIN (size.discrete.height, G_MAXINT);
+      w = MIN (size.discrete.width, max_width);
+      h = MIN (size.discrete.height, max_height);
 
       if (w && h) {
         tmp =
@@ -2828,8 +2835,8 @@ gst_v4l2_object_probe_caps_for_format (GstV4l2Object * v4l2object,
 
     w = MAX (size.stepwise.min_width, 1);
     h = MAX (size.stepwise.min_height, 1);
-    maxw = MIN (size.stepwise.max_width, G_MAXINT);
-    maxh = MIN (size.stepwise.max_height, G_MAXINT);
+    maxw = MIN (size.stepwise.max_width, max_width);
+    maxh = MIN (size.stepwise.max_height, max_height);
 
     step_w = MAX (size.stepwise.step_width, 1);
     step_h = MAX (size.stepwise.step_height, 1);
@@ -2869,8 +2876,8 @@ gst_v4l2_object_probe_caps_for_format (GstV4l2Object * v4l2object,
 
     w = MAX (size.stepwise.min_width, 1);
     h = MAX (size.stepwise.min_height, 1);
-    maxw = MIN (size.stepwise.max_width, G_MAXINT);
-    maxh = MIN (size.stepwise.max_height, G_MAXINT);
+    maxw = MIN (size.stepwise.max_width, max_width);
+    maxh = MIN (size.stepwise.max_height, max_height);
 
     tmp =
         gst_v4l2_object_probe_caps_for_format_and_size (v4l2object, pixelformat,
