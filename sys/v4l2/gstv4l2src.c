@@ -66,7 +66,7 @@
 GST_DEBUG_CATEGORY (v4l2src_debug);
 #define GST_CAT_DEFAULT v4l2src_debug
 
-#define DEFAULT_PROP_DEVICE   "/dev/video0"
+static const gchar *DEFAULT_PROP_DEVICE = NULL;
 
 enum
 {
@@ -142,6 +142,10 @@ gst_v4l2src_class_init (GstV4l2SrcClass * klass)
   GstElementClass *element_class;
   GstBaseSrcClass *basesrc_class;
   GstPushSrcClass *pushsrc_class;
+
+  DEFAULT_PROP_DEVICE = g_getenv ("GST_V4L2SRC_DEFAULT_DEVICE");
+  if (!DEFAULT_PROP_DEVICE)
+    DEFAULT_PROP_DEVICE = "/dev/video0";
 
   gobject_class = G_OBJECT_CLASS (klass);
   element_class = GST_ELEMENT_CLASS (klass);
