@@ -56,6 +56,8 @@ GST_DEBUG_CATEGORY_EXTERN (v4l2_debug);
 
 #define ENCODED_BUFFER_SIZE             (2 * 1024 * 1024)
 
+static guint DEFAULT_PROP_MIN_BUFFERS = 0;
+
 enum
 {
   PROP_0,
@@ -307,6 +309,11 @@ void
 gst_v4l2_object_install_properties_helper (GObjectClass * gobject_class,
     const char *default_device)
 {
+  const gchar *buf = g_getenv ("GST_V4L2_MIN_BUFS");
+
+  if (buf)
+    DEFAULT_PROP_MIN_BUFFERS = atoi (buf);
+
   g_object_class_install_property (gobject_class, PROP_DEVICE,
       g_param_spec_string ("device", "Device", "Device location",
           default_device, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
@@ -426,6 +433,12 @@ gst_v4l2_object_install_properties_helper (GObjectClass * gobject_class,
           "When enabled, the pixel aspect ratio will be enforced", TRUE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_MIN_BUFFERS,
+      g_param_spec_uint ("min-buffers", "Min buffers",
+          "Override the driver's min buffers (0 means auto)",
+          0, VIDEO_MAX_FRAME, DEFAULT_PROP_MIN_BUFFERS,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   gst_type_mark_as_plugin_api (GST_TYPE_V4L2_DEVICE_FLAGS, 0);
   gst_type_mark_as_plugin_api (GST_TYPE_V4L2_TV_NORM, 0);
   gst_type_mark_as_plugin_api (GST_TYPE_V4L2_IO_MODE, 0);
@@ -542,6 +555,8 @@ gst_v4l2_object_new (GstElement * element,
     v4l2object->mmap = mmap;
     v4l2object->munmap = munmap;
   }
+
+  v4l2object->min_buffers = DEFAULT_PROP_MIN_BUFFERS;
 
   return v4l2object;
 }
@@ -713,6 +728,9 @@ gst_v4l2_object_set_property_helper (GstV4l2Object * v4l2object,
     case PROP_FORCE_ASPECT_RATIO:
       v4l2object->keep_aspect = g_value_get_boolean (value);
       break;
+    case PROP_MIN_BUFFERS:
+      v4l2object->min_buffers = g_value_get_uint (value);
+      break;
     default:
       return FALSE;
       break;
@@ -810,6 +828,9 @@ gst_v4l2_object_get_property_helper (GstV4l2Object * v4l2object,
     case PROP_FORCE_ASPECT_RATIO:
       g_value_set_boolean (value, v4l2object->keep_aspect);
       break;
+    case PROP_MIN_BUFFERS:
+      g_value_set_uint (value, v4l2object->min_buffers);
+      break;
     default:
       return FALSE;
       break;
@@ -821,6 +842,9 @@ static void
 gst_v4l2_get_driver_min_buffers (GstV4l2Object * v4l2object)
 {
   struct v4l2_control control = { 0, };
+
+  if (v4l2object->min_buffers)
+    return;
 
   g_return_if_fail (GST_V4L2_IS_OPEN (v4l2object));
 
