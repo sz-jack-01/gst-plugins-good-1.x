@@ -57,6 +57,7 @@ GST_DEBUG_CATEGORY_EXTERN (v4l2_debug);
 #define ENCODED_BUFFER_SIZE             (2 * 1024 * 1024)
 
 static guint DEFAULT_PROP_MIN_BUFFERS = 0;
+static gboolean DEFAULT_PROP_NO_BUFFER_SHARING = FALSE;
 
 enum
 {
@@ -314,6 +315,9 @@ gst_v4l2_object_install_properties_helper (GObjectClass * gobject_class,
   if (buf)
     DEFAULT_PROP_MIN_BUFFERS = atoi (buf);
 
+  if ((buf = g_getenv ("GST_V4L2_NO_BUF_SHARING")))
+    DEFAULT_PROP_NO_BUFFER_SHARING = buf[0] == '1';
+
   g_object_class_install_property (gobject_class, PROP_DEVICE,
       g_param_spec_string ("device", "Device", "Device location",
           default_device, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
@@ -439,6 +443,12 @@ gst_v4l2_object_install_properties_helper (GObjectClass * gobject_class,
           0, VIDEO_MAX_FRAME, DEFAULT_PROP_MIN_BUFFERS,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_NO_BUFFER_SHARING,
+      g_param_spec_boolean ("no-buffer-sharing", "No buffer sharing",
+          "When enabled, disable buffer sharing",
+	  DEFAULT_PROP_NO_BUFFER_SHARING,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   gst_type_mark_as_plugin_api (GST_TYPE_V4L2_DEVICE_FLAGS, 0);
   gst_type_mark_as_plugin_api (GST_TYPE_V4L2_TV_NORM, 0);
   gst_type_mark_as_plugin_api (GST_TYPE_V4L2_IO_MODE, 0);
@@ -557,6 +567,7 @@ gst_v4l2_object_new (GstElement * element,
   }
 
   v4l2object->min_buffers = DEFAULT_PROP_MIN_BUFFERS;
+  v4l2object->no_buffer_sharing = DEFAULT_PROP_NO_BUFFER_SHARING;
 
   return v4l2object;
 }
@@ -731,6 +742,9 @@ gst_v4l2_object_set_property_helper (GstV4l2Object * v4l2object,
     case PROP_MIN_BUFFERS:
       v4l2object->min_buffers = g_value_get_uint (value);
       break;
+    case PROP_NO_BUFFER_SHARING:
+      v4l2object->no_buffer_sharing = g_value_get_boolean (value);
+      break;
     default:
       return FALSE;
       break;
@@ -830,6 +844,9 @@ gst_v4l2_object_get_property_helper (GstV4l2Object * v4l2object,
       break;
     case PROP_MIN_BUFFERS:
       g_value_set_uint (value, v4l2object->min_buffers);
+      break;
+    case PROP_NO_BUFFER_SHARING:
+      g_value_set_boolean (value, v4l2object->no_buffer_sharing);
       break;
     default:
       return FALSE;
@@ -4943,6 +4960,9 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
   gst_v4l2_get_driver_min_buffers (obj);
   /* We can't share our own pool, if it exceed V4L2 capacity */
   if (min + obj->min_buffers + 1 > VIDEO_MAX_FRAME)
+    can_share_own_pool = FALSE;
+
+  if (obj->no_buffer_sharing)
     can_share_own_pool = FALSE;
 
   /* select a pool */

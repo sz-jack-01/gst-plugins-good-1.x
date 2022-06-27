@@ -222,6 +222,8 @@ struct _GstV4l2Object {
    * on slow USB firmwares. When this is set, gst_v4l2_set_format() will modify
    * the caps to reflect what was negotiated during fixation */
   gboolean skip_try_fmt_probes;
+
+  gboolean no_buffer_sharing;
 };
 
 struct _GstV4l2ObjectClassHelper {
@@ -247,7 +249,8 @@ GType gst_v4l2_object_get_type (void);
     PROP_EXTRA_CONTROLS,      \
     PROP_PIXEL_ASPECT_RATIO,  \
     PROP_FORCE_ASPECT_RATIO,  \
-    PROP_MIN_BUFFERS
+    PROP_MIN_BUFFERS,         \
+    PROP_NO_BUFFER_SHARING
 
 /* create/destroy */
 GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
